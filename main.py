@@ -14,7 +14,11 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
    resposta: str
-   session_id: str
+   chat_id: str
+
+class HistoryResponse(BaseModel):
+    chat_id: str
+    messages: list[str]
 
 template = """
 CONTEXT:
@@ -24,7 +28,7 @@ USER: {mensagem}
 IA:
 """
 
-llm = OllamaLLM(model="llama3.2:1b")
+llm = OllamaLLM(model="llama3.2:1b", temperature=0.4)
 prompt = ChatPromptTemplate.from_template(template)
 chain = prompt | llm
 
@@ -37,21 +41,21 @@ app = FastAPI(
 )
 
 @app.post("/chat", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest, session_id: str = Header(None, alias="Session-id")):
+def chat_endpoint(request: ChatRequest, chat_id: str = Header(None)):
 
-    if session_id is None:
-        session_id = str(uuid.uuid4())
-        historico_sessoes[session_id] = []
+    if chat_id is None:
+        chat_id = str(uuid.uuid4())
+        historico_sessoes[chat_id] = []
     else:
-        if session_id not in historico_sessoes:
-            historico_sessoes[session_id] = []
+        if chat_id not in historico_sessoes:
+            historico_sessoes[chat_id] = []
 
 
     start = time.time()
 
     mensagem = request.mensagem
-    historico = historico_sessoes[session_id]
-    contexto = "\n".join(historico)
+    historico = historico_sessoes[chat_id]
+    contexto = "\n".join(historico[-10:])
 
     resposta = obter_resposta(contexto, mensagem)
 
@@ -63,4 +67,8 @@ def chat_endpoint(request: ChatRequest, session_id: str = Header(None, alias="Se
     duration_formated = time.strftime("%H:%M:%S", time.gmtime(duration))
     print(f"Requisicao processada em {duration_formated}.{milis:03d}")
     
-    return {"resposta":resposta,"session_id":session_id}
+    return {"resposta":resposta,"chat_id":chat_id}
+
+@app.get("/chat/{chat_id}", response_model=HistoryResponse)
+def get_chat_history(chat_id: str):  
+    return {"chat_id": chat_id, "messages": historico_sessoes[chat_id]}
