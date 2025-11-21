@@ -2,12 +2,15 @@ from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 from fastapi import FastAPI, Header
 from pydantic import BaseModel
+from collections import OrderedDict
 import time
 import psutil
 import logging
 import uuid
 
 historico_sessoes = {}
+cache_local = OrderedDict()
+cache_max_size = 100
 
 class ChatRequest(BaseModel):
     mensagem: str
@@ -50,14 +53,22 @@ def chat_endpoint(request: ChatRequest, chat_id: str = Header(None)):
         if chat_id not in historico_sessoes:
             historico_sessoes[chat_id] = []
 
-
     start = time.time()
 
     mensagem = request.mensagem
     historico = historico_sessoes[chat_id]
     contexto = "\n".join(historico[-10:])
 
-    resposta = obter_resposta(contexto, mensagem)
+
+    if mensagem in cache_local:
+        cache_local.move_to_end(mensagem)
+        resposta = cache_local[mensagem]
+    else:
+        if len(cache_local) > cache_max_size:
+            cache_local.popitem(last=False)
+        
+        resposta = obter_resposta(contexto, mensagem)
+        cache_local[mensagem] = resposta
 
     historico.append(f"USER: {mensagem}")
     historico.append(f"IA: {resposta}")
