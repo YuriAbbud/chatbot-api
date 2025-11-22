@@ -1,5 +1,3 @@
-import uuid
-import time
 from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -21,9 +19,13 @@ class ChatService:
         self.llm = OllamaLLM(model=LLM_MODEL_NAME, temperature=0.4)
         self.prompt = ChatPromptTemplate.from_template(template)
 
-    def process_message(self, mensagem, chat_id):
+    def process_message(self, mensagem: str, chat_id: str):
+
+        if not mensagem or mensagem.strip() == "":
+            return "A mensagem enviada está vazia. Por favor, envie um texto válido."
+        
         historico = get_history(chat_id)
-        contexto = "\n".join(historico[-10:])
+        contexto = "\n".join(historico[-20:])
 
         cached = self.cache.get(mensagem)
         if cached:

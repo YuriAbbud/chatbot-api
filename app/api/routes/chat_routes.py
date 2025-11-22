@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Header
 from app.models.request_models import ChatRequest
 from app.models.response_models import ChatResponse
@@ -10,7 +11,6 @@ service = ChatService()
 @router.post("/", response_model=ChatResponse)
 def chat(request: ChatRequest, chat_id: str = Header(None)):
     if not chat_id:
-        import uuid
         chat_id = str(uuid.uuid4())
 
     resposta = service.process_message(request.mensagem, chat_id)
