@@ -1,3 +1,4 @@
+import logging
 from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -22,6 +23,7 @@ class ChatService:
     def process_message(self, mensagem: str, chat_id: str):
 
         if not mensagem or mensagem.strip() == "":
+            logging.error(f"[{chat_id}] Mensagem vazia recebida.")
             return "A mensagem enviada está vazia. Por favor, envie um texto válido."
         
         historico = get_history(chat_id)
@@ -29,8 +31,10 @@ class ChatService:
 
         cached = self.cache.get(mensagem)
         if cached:
+            logging.info(f"[{chat_id}] Cache contem resposta para mensagem: {mensagem}")
             resposta = cached
         else:
+            logging.info(f"[{chat_id}] Cache não contem resposta para mensagem: {mensagem}")
             prompt_final = f"""
             CONTEXT:
             {contexto}
@@ -39,8 +43,14 @@ class ChatService:
             IA:
             """.strip()
 
-            resposta = self.llm.invoke(prompt_final)
+            try:
+                resposta = self.llm.invoke(prompt_final)
+            except Exception as e:
+                logging.error(f"[{chat_id}] Erro ao chamar o modelo: {e}")
+                return "Desculpe, ocorreu um erro ao processar sua solicitação"
 
+
+            logging.info(f"[{chat_id}] Resposta gerada e adicionada ao cache.")
             self.cache.set(mensagem, resposta)
 
         append_history(chat_id, "USER", mensagem)

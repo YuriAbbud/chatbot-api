@@ -1,5 +1,5 @@
-import uuid
-from fastapi import APIRouter, Header
+import logging
+from fastapi import APIRouter, HTTPException, Header
 from app.models.request_models import ChatRequest
 from app.models.response_models import ChatResponse
 from app.services.chat_service import ChatService
@@ -10,11 +10,12 @@ service = ChatService()
 
 @router.post("/", response_model=ChatResponse)
 def chat(request: ChatRequest, chat_id: str = Header(None)):
-    if not chat_id:
-        chat_id = str(uuid.uuid4())
-
-    resposta = service.process_message(request.mensagem, chat_id)
-    return {"resposta": resposta, "chat_id": chat_id}
+    try:
+        resposta = service.process_message(request.mensagem, chat_id)
+        return ChatResponse(resposta=resposta, chat_id=chat_id)
+    except Exception as e:
+        logging.critical(f"Erro inesperado no endpoint: {e}")
+        raise HTTPException(500, "Erro interno no servidor")
 
 @router.get("/{chat_id}")
 def history(chat_id: str):
